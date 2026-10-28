@@ -1,0 +1,8 @@
+.env
+*.db
+gtfs/
+venv/
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+*.pem

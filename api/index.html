@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How late is my bus?</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Figtree:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:light dark;--bg:#EEF4F5;--panel:#fff;--ink:#10243A;--muted:#5B6B7B;--line:#D5E0E3;--badge:#F4B73B;--badge-ink:#10243A;--ok:#1E8A5A;--early:#2D6BB5;--slight:#A8670B;--late:#C8452F;--band:rgba(16,36,58,.05);--peak:rgba(244,183,59,.17);--unseen:#8795A3}
+@media(prefers-color-scheme:dark){:root{--bg:#0C1824;--panel:#122234;--ink:#EAF1F5;--muted:#9FB0BF;--line:#243A50;--ok:#4CC28A;--early:#6DB2FF;--slight:#F2B24C;--late:#FF7A63;--band:rgba(255,255,255,.06);--peak:rgba(244,183,59,.14);--unseen:#7F90A0}}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 Figtree,system-ui,sans-serif}
+main{max-width:880px;margin:0 auto;padding:32px 16px 56px}
+h1{font:700 clamp(2.2rem,6vw,3.4rem)/1 "Barlow Condensed","Arial Narrow",sans-serif;margin:0 0 8px}
+.sub{color:var(--muted);max-width:60ch;margin:0 0 24px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.panel>section{padding:20px 24px;border-top:1px solid var(--line)}
+.panel>section:first-child{border-top:0}
+.controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:16px 24px}
+@media(max-width:640px){.controls{grid-template-columns:1fr}.panel>section{padding:16px}}
+label,.lbl{display:block;font-size:.875rem;color:var(--muted);margin-bottom:6px}
+select{width:100%;padding:11px 12px;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px}
+.seg{display:flex;gap:6px}
+.seg button{flex:1;min-width:0;padding:11px 12px;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;cursor:pointer;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.seg button[aria-checked=true]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+:focus-visible{outline:3px solid var(--early);outline-offset:2px}
+.readout{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.badge{min-width:104px;padding:6px 16px;background:var(--badge);color:var(--badge-ink);border-radius:14px;text-align:center;font:700 3.4rem/1.05 "Barlow Condensed","Arial Narrow",sans-serif}
+#verdict{font:700 clamp(2.4rem,8vw,4.2rem)/1 "Barlow Condensed","Arial Narrow",sans-serif}
+.ok{color:var(--ok)}.early{color:var(--early)}.slight{color:var(--slight)}.late{color:var(--late)}
+#where{color:var(--muted);margin-top:6px}
+.timehead{display:flex;justify-content:space-between;align-items:baseline}
+#timeLabel{font:700 1.6rem "Barlow Condensed","Arial Narrow",sans-serif}
+input[type=range]{width:100%;height:32px;accent-color:var(--ink);margin:0}
+#note{color:var(--slight);margin:6px 0 0}#note:empty{display:none}
+#chart{display:block;width:100%;height:300px;touch-action:pan-y;cursor:crosshair}
+svg text{font:12px Figtree,system-ui,sans-serif;fill:var(--muted)}
+.legend{display:flex;gap:6px 16px;flex-wrap:wrap;color:var(--muted);font-size:.8rem;margin-top:8px}
+.legend i{display:inline-block;width:18px;border-top:3px solid var(--ink);vertical-align:middle;margin-right:6px}
+.legend i.d{border-top:3px dashed var(--unseen)}
+.legend i.b{height:10px;border:0;background:var(--band);border-radius:3px}
+footer{color:var(--muted);font-size:.85rem;margin-top:14px;max-width:70ch}
+.seg button{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.25}
+#verdict.est{opacity:.5}
+</style>
+</head>
+<body>
+<main>
+<h1>How late is my bus?</h1>
+<p class="sub">Typical delays on Auckland buses, learned from live Auckland Transport data. Pick a route, then slide through the day.</p>
+<div class="panel">
+  <section class="controls">
+    <div><label for="route">Route</label><select id="route"></select></div>
+    <div><span class="lbl" id="dl">Direction</span><div class="seg" id="dirs" role="radiogroup" aria-labelledby="dl"></div></div>
+  </section>
+  <section class="readout">
+    <div class="badge" id="badge">-</div>
+    <div><div id="verdict">Loading</div><div id="where"></div></div>
+  </section>
+  <section>
+    <div class="timehead"><label for="hour">Time of day</label><span id="timeLabel"></span></div>
+    <input id="hour" type="range" min="0" max="23" step="1" value="8">
+    <p id="note"></p>
+  </section>
+  <section id="chartwrap">
+    <svg id="chart" role="img" aria-label="Predicted delay across the day"></svg>
+    <div class="legend"><span><i></i>Hours we have recorded</span><span><i class="d"></i>Not recorded yet (estimate)</span><span><i class="b"></i>Typical miss of the model</span></div>
+  </section>
+</div>
+<footer id="foot"></footer>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const COL = { ok: "var(--ok)", early: "var(--early)", slight: "var(--slight)", late: "var(--late)" };
+const nowHour = () => parseInt(new Intl.DateTimeFormat("en-NZ", { hour: "numeric", hour12: false, timeZone: "Pacific/Auckland" }).format(new Date()), 10) % 24;
+const clock = h => (h % 12 === 0 ? 12 : h % 12) + ":00 " + (h < 12 ? "am" : "pm");
+const tick = h => (h % 12 === 0 ? 12 : h % 12) + (h < 12 ? "a" : "p");
+const S = { routes: {}, route: "83", dir: 0, hour: nowHour(), prof: null };
+const G = { W: 760, L: 78, R: 16 };
+
+function verdict(sec) {
+  const m = Math.round(Math.abs(sec) / 60);
+  if (Math.abs(sec) < 60) return { text: "On time", cls: "ok" };
+  return sec > 0 ? { text: m + " min late", cls: sec >= 300 ? "late" : "slight" } : { text: m + " min early", cls: "early" };
+}
+const dest = hs => { const p = hs.split(/ to /i); return p[p.length - 1].trim().replace(/\bVia\b/g, "via"); };
+function dirs() {
+  const r = S.routes[S.route], d = r.dirs || {};
+  const ks = Object.keys(d).filter(k => d[k]);
+  return ks.length ? ks.map(k => ({ id: +k, label: "to " + dest(d[k]) })) : [{ id: 0, label: "Direction 0" }, { id: 1, label: "Direction 1" }];
+}
+function fail() {
+  $("verdict").textContent = "No predictions";
+  $("verdict").className = "late";
+  $("where").textContent = "Can't reach the prediction service. Check that the server is running, then reload.";
+}
+function drawDirs() {
+  const box = $("dirs"), ds = dirs();
+  box.replaceChildren();
+  if (!ds.some(d => d.id === S.dir)) S.dir = ds[0].id;
+  ds.forEach(d => {
+    const b = document.createElement("button");
+    b.type = "button"; b.setAttribute("role", "radio"); b.setAttribute("aria-checked", d.id === S.dir);
+    b.textContent = d.label; b.title = d.label;
+    b.onclick = () => { S.dir = d.id; load(); };
+    box.appendChild(b);
+  });
+}
+async function load() {
+  drawDirs();
+  $("chartwrap").style.opacity = .5;
+  try {
+    const r = await fetch("/profile?route=" + encodeURIComponent(S.route) + "&direction=" + S.dir);
+    if (!r.ok) throw new Error(r.status);
+    S.prof = await r.json();
+    if (!S.settled) { S.settled = true; if (!S.prof.hours[S.hour].seen) { const f = S.prof.hours.find(x => x.seen); if (f) { S.hour = f.hour; $("hour").value = f.hour; } } }
+    render();
+  } catch (e) { fail(); }
+  $("chartwrap").style.opacity = 1;
+}
+function render() {
+  const p = S.prof, pt = p.hours[S.hour], v = verdict(pt.delay), d = dirs().find(x => x.id === S.dir);
+  $("badge").textContent = S.route;
+  $("verdict").textContent = v.text; $("verdict").className = v.cls; if (!pt.seen) $("verdict").classList.add("est");
+  $("where").textContent = "Route " + S.route + ", " + d.label + ", around " + clock(S.hour);
+  $("timeLabel").textContent = clock(S.hour);
+  $("note").textContent = pt.seen ? "" : "No buses recorded at this hour yet, so this is an estimate.";
+  $("foot").textContent = "Based on " + p.trained_rows.toLocaleString() + " live readings from Auckland Transport. The model's typical miss is about " + Math.round(p.typical_error_seconds / 60) + " min, so treat this as a guide, not a timetable.";
+  chart(v.cls);
+}
+function chart(cls) {
+  const svg = $("chart"), W = Math.max(300, Math.round(svg.getBoundingClientRect().width)), H = 300;
+  const L = W < 520 ? 68 : 78, R = 16, T = 30, B = 32;
+  G.W = W; G.L = L; G.R = R;
+  const p = S.prof, err = p.typical_error_seconds / 60, v = p.hours.map(h => h.delay / 60);
+  const lo0 = Math.min(-2, ...v.map(x => x - err)), hi0 = Math.max(6, ...v.map(x => x + err));
+  const step = (hi0 - lo0) > 16 ? 5 : 2, lo = Math.floor(lo0 / step) * step, hi = Math.ceil(hi0 / step) * step;
+  const X = h => L + h * (W - L - R) / 23, Y = m => T + (hi - m) * (H - T - B) / (hi - lo);
+  let s = "";
+  [[7, 9, "Morning peak"], [16, 18, "Evening peak"]].forEach(([a, b, t]) => {
+    s += `<rect x="${X(a)}" y="${T}" width="${X(b) - X(a)}" height="${H - T - B}" fill="var(--peak)"/><text x="${X(a)}" y="${T - 10}">${t}</text>`;
+  });
+  for (let g = lo; g <= hi; g += step) {
+    const lab = g === 0 ? "on time" : g > 0 ? g + " min late" : (-g) + " min early";
+    s += `<line x1="${L}" x2="${W - R}" y1="${Y(g)}" y2="${Y(g)}" stroke="var(--line)" stroke-width="${g === 0 ? 2 : 1}"/><text x="${L - 8}" y="${Y(g) + 4}" text-anchor="end">${lab}</text>`;
+  }
+  for (let h = 0; h < 24; h += 3) s += `<text x="${X(h)}" y="${H - 8}" text-anchor="middle">${tick(h)}</text>`;
+  const up = v.map((x, i) => `${X(i)},${Y(x + err)}`), dn = v.map((x, i) => `${X(i)},${Y(x - err)}`).reverse();
+  s += `<polygon points="${up.concat(dn).join(" ")}" fill="var(--band)"/>`;
+  let solid = "", dash = "";
+  for (let i = 1; i < 24; i++) {
+    const seg = `M${X(i - 1)} ${Y(v[i - 1])}L${X(i)} ${Y(v[i])}`;
+    if (p.hours[i].seen && p.hours[i - 1].seen) solid += seg; else dash += seg;
+  }
+  s += `<path d="${dash}" fill="none" stroke="var(--unseen)" stroke-width="2.5" stroke-dasharray="6 6" stroke-linecap="round"/>`;
+  s += `<path d="${solid}" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/>`;
+  const cx = X(S.hour), cy = Y(v[S.hour]);
+  s += `<line x1="${cx}" x2="${cx}" y1="${T}" y2="${H - B}" stroke="var(--ink)" stroke-dasharray="2 3"/><circle cx="${cx}" cy="${cy}" r="7" fill="${COL[cls]}" stroke="var(--panel)" stroke-width="3"/>`;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("aria-label", "Predicted delay for route " + S.route + " across the day. At " + clock(S.hour) + ": " + verdict(p.hours[S.hour].delay).text + ".");
+  svg.innerHTML = s;
+}
+function pick(e) {
+  const svg = $("chart"), r = svg.getBoundingClientRect(), x = (e.clientX - r.left) * (G.W / r.width);
+  S.hour = Math.max(0, Math.min(23, Math.round((x - G.L) * 23 / (G.W - G.L - G.R))));
+  $("hour").value = S.hour; render();
+}
+$("chart").addEventListener("pointerdown", e => { $("chart").setPointerCapture(e.pointerId); if (S.prof) pick(e); });
+$("chart").addEventListener("pointermove", e => { if (e.buttons && S.prof) pick(e); });
+$("hour").addEventListener("input", e => { S.hour = +e.target.value; if (S.prof) render(); });
+$("route").addEventListener("change", e => { S.route = e.target.value; load(); });
+window.addEventListener("resize", () => { if (S.prof) render(); });
+
+(async function init() {
+  try {
+    const list = await (await fetch("/routes")).json();
+    list.forEach(r => { S.routes[r.route] = r; });
+    const sel = $("route"), col = new Intl.Collator(undefined, { numeric: true });
+    Object.keys(S.routes).sort(col.compare).forEach(k => {
+      const o = document.createElement("option");
+      o.value = k; const nm = S.routes[k].name; o.textContent = nm && nm !== k ? k + ": " + nm : k;
+      sel.appendChild(o);
+    });
+    if (!S.routes[S.route]) S.route = sel.options[0].value;
+    sel.value = S.route; $("hour").value = S.hour;
+    await load();
+  } catch (e) { fail(); }
+})();
+</script>
+</body>
+</html>
