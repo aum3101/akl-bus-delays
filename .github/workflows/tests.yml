@@ -18,3 +18,15 @@ jobs:
         run: pip install -r requirements.txt pytest httpx
       - name: Run tests
         run: pytest -q
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t akl-bus-delays .
+      - name: Smoke test
+        run: |
+          docker run -d -p 8000:8000 --name app akl-bus-delays
+          sleep 8
+          curl -fsS http://localhost:8000/health

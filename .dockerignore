@@ -1,0 +1,12 @@
+.git
+.github
+.env
+*.db
+*.pem
+*.ipynb
+gtfs
+venv
+.venv
+tests
+__pycache__
+.ipynb_checkpoints
