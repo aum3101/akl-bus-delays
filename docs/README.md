@@ -6,7 +6,7 @@ A small end-to-end data project. It collects live Auckland Transport bus data ar
 
 **Live demo: http://16.178.172.104/** (plain HTTP, running on a small AWS server, so it may be offline at times)
 
-![The delay predictor](docs/screenshot.png)
+![The delay predictor](screenshot.png)
 
 
 ## Why I built it
