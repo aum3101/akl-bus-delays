@@ -8,6 +8,7 @@ A small end-to-end data project. It collects live Auckland Transport bus data ar
 
 ![The delay predictor](docs/screenshot.png)
 
+
 ## Why I built it
 
 Auckland buses often run early or late in ways a timetable doesn't show. I wanted to find out how much of that is predictable from the route and the time of day, and to build the whole pipeline myself: collection, cleaning, modelling, an API, a front end, tests and deployment.
