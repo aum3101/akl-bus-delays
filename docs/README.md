@@ -4,7 +4,7 @@
 
 A small end-to-end data project. It collects live Auckland Transport bus data around the clock, learns the typical delay for each route, and serves the result as a web app. Pick a route and a direction, then drag through the day to see how late that bus usually runs.
 
-**Live demo: http://16.178.172.104/** (plain HTTP, running on a small AWS server, so it may be offline at times)
+**Live demo: https://akl-bus.duckdns.org/** (running on a small AWS server, so it may be offline at times)
 
 ![The delay predictor](screenshot.png)
 
@@ -62,7 +62,7 @@ What this shows:
 - **Thin overnight coverage.** Few buses run between about 1am and 4am, so there is little to learn from. The chart draws hours with too little data as dashed lines and the page labels them as estimates.
 - **Typical delay, not a live arrival time.** The model doesn't see where a bus is right now, so it can't tell you whether today's bus is running late.
 - **Static timetable snapshot.** The GTFS timetable was downloaded once, and the match rate for the most recent data (98.1%) is slightly lower than for the first days (99.0%), which suggests the timetable changed a little. A production version would refresh it on a schedule.
-- **Demo-grade hosting.** The live app runs on a single small server over plain HTTP, with no autoscaling or monitoring.
+- **Demo-grade hosting.** The live app runs on a single small server behind a Caddy reverse proxy on a free DuckDNS name, with no autoscaling or monitoring.
 
 ## Run it locally
 
@@ -127,7 +127,7 @@ Dockerfile            Container image for the API
 - Use the delay at earlier stops of the same trip, to predict how late a bus already on the road will be.
 - Refresh the static timetable automatically and retrain on a schedule.
 - Move the database to PostgreSQL and the infrastructure to Terraform.
-- Add HTTPS and basic monitoring.
+- Add basic monitoring.
 
 ## Data
 
